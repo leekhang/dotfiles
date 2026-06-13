@@ -1,0 +1,84 @@
+#!/bin/bash
+
+export PATH="/usr/local/bin:/usr/bin:/bin:{{ .chezmoi.homeDir }}/.local/bin:$PATH"
+
+input=$(cat)
+
+if ! command -v jq &>/dev/null; then
+  exit 0
+fi
+
+folder=$(basename "$(echo "$input" | jq -r '.cwd // empty')")
+
+used_pct=$(echo "$input" | jq -r '.context_window.used_percentage // 0')
+ctx_size=$(echo "$input" | jq -r '.context_window.context_window_size // empty')
+ctx_str=""
+if [ -n "$ctx_size" ]; then
+  ctx_k=$(( ctx_size / 1000 ))
+  bar=$(awk -v p="$used_pct" 'BEGIN {
+    filled = int(p / 10 + 0.5)
+    if (filled > 10) filled = 10
+    for (i = 1; i <= 10; i++) printf (i <= filled ? "█" : "░")
+  }')
+  pct=$(printf '%.0f' "$used_pct")
+  if awk "BEGIN {exit !($used_pct >= 75)}"; then
+    color=$'\033[31m'
+  elif awk "BEGIN {exit !($used_pct >= 50)}"; then
+    color=$'\033[33m'
+  else
+    color=$'\033[32m'
+  fi
+  ctx_str=$'\033[0m'"${color}${bar}"$'\033[0m\033[2m'" ${pct}%/${ctx_k}k"
+fi
+
+fmt_tokens() {
+  local n=$1
+  if [ -z "$n" ] || [ "$n" = "null" ]; then echo "0"; return; fi
+  if awk "BEGIN {exit !($n >= 1000)}"; then
+    awk "BEGIN {printf \"%.1fk\", $n / 1000}"
+  else
+    echo "$n"
+  fi
+}
+in_tokens=$(echo "$input" | jq -r '.context_window.total_input_tokens // empty')
+out_tokens=$(echo "$input" | jq -r '.context_window.total_output_tokens // empty')
+tokens_str=""
+if [ -n "$in_tokens" ] && [ -n "$out_tokens" ]; then
+  tokens_str="↑ $(fmt_tokens "$in_tokens") · ↓ $(fmt_tokens "$out_tokens")"
+fi
+
+model=$(echo "$input" | jq -r '.model.display_name // empty')
+
+duration_str=""
+transcript=$(echo "$input" | jq -r '.transcript_path // empty')
+if [ -n "$transcript" ] && [ -f "$transcript" ]; then
+  mtime=$(stat -c %Y "$transcript" 2>/dev/null)
+  if [ -n "$mtime" ]; then
+    elapsed=$(( $(date +%s) - mtime ))
+    mins=$(( elapsed / 60 ))
+    hrs=$(( mins / 60 ))
+    mins=$(( mins % 60 ))
+    [ "$hrs" -gt 0 ] && duration_str="${hrs}h${mins}m" || duration_str="${mins}m"
+  fi
+fi
+
+join_parts() {
+  local out=""
+  for part in "$@"; do
+    [ -z "$out" ] && out="$part" || out="$out · $part"
+  done
+  printf "\033[2m%s\033[0m\n" "$out"
+}
+
+# Line 1: context bar + tokens
+line1=()
+[ -n "$ctx_str" ]    && line1+=(" $ctx_str")
+[ -n "$tokens_str" ] && line1+=("$tokens_str")
+[ ${#line1[@]} -gt 0 ] && join_parts "${line1[@]}"
+
+# Line 2: folder, model, duration
+line2=()
+[ -n "$folder" ]       && line2+=(" $folder")
+[ -n "$model" ]        && line2+=(" $model")
+[ -n "$duration_str" ] && line2+=(" $duration_str")
+[ ${#line2[@]} -gt 0 ] && join_parts "${line2[@]}"
