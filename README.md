@@ -11,6 +11,9 @@ chezmoi apply
 
 # Install skills for all agents
 ./bootstrap/bootstrap-skills.sh
+
+# Install tools
+./bootstrap/bootstrap-tools.sh
 ```
 
 ## Structure
@@ -19,6 +22,7 @@ chezmoi apply
 dotfiles/
   bootstrap/
     bootstrap-skills.sh     # Install skills for all agents
+    bootstrap-tools.sh      # Install CLI tools (OS-aware)
   dot_claude/
     settings.json.tmpl      # Claude Code config (API key templated)
     statusline-command.sh   # Claude Code statusline script
@@ -39,6 +43,22 @@ dotfiles/
 |---|---|
 | Google Workspace | `hermes skills tap add googleworkspace/cli` |
 | Matt Pocock | `hermes skills tap add mattpocock/skills` |
+| Figma | `hermes skills tap add figma/mcp-server-guide` |
+
+## Tools
+
+### Figma
+| Agent | How to connect |
+|---|---|
+| Claude Code | `/plugin install figma@claude-plugins-official` (run inside Claude Code) |
+| Hermes | MCP server via `figma/mcp-server-guide` · skills via `bootstrap-skills.sh` |
+
+### Google Workspace
+| Agent | How to connect |
+|---|---|
+| Claude Code | Skills via `bootstrap-skills.sh` |
+| Hermes | Skills via `bootstrap-skills.sh` |
+| CLI | GWS CLI via `bootstrap-tools.sh` |
 
 ## Secrets
 
@@ -50,10 +70,3 @@ On a new machine, create `~/.config/chezmoi/chezmoi.toml` with:
 ```
 
 Get your SkillsMPC API key from the SkillsMPC dashboard.
-
-## Plugins
-
-Figma plugin must be installed manually inside Claude Code:
-```
-/plugin install figma@claude-plugins-official
-```

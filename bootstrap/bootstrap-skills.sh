@@ -9,3 +9,4 @@ npx skills@latest add mattpocock/skills
 echo "Installing Hermes skills..."
 hermes skills tap add googleworkspace/cli
 hermes skills tap add mattpocock/skills
+hermes skills tap add figma/mcp-server-guide
