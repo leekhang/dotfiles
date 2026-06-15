@@ -140,6 +140,20 @@ if echo "$COMPONENTS" | grep -q "Shell Environment"; then
     fi
 
     chezmoi apply ~/.tmux.conf
+
+    echo ""
+    HOST_CHOICE=$(gum choose --header "How should the tmux status bar label this device?" \
+      "Use default hostname" \
+      "Set a custom device name")
+
+    if [[ "$HOST_CHOICE" == "Set a custom device name" ]]; then
+      DEVICE_NAME=$(gum input --placeholder "e.g. mbp, homelab, zimaboard")
+      if [[ -n "$DEVICE_NAME" ]]; then
+        echo "set -g @catppuccin_host_text \" $DEVICE_NAME\"" >> ~/.tmux.conf
+        echo "Device name set to '$DEVICE_NAME'"
+      fi
+    fi
+
     echo "Installed .tmux.conf — open tmux and press Ctrl+b I to install plugins."
 
     if gum confirm "Auto-start tmux on SSH login? (recommended for headless servers)"; then
