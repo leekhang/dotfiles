@@ -5,22 +5,20 @@ Personal dotfiles, agent skills, and configs for Claude Code, Hermes, and other 
 ## Quick Start
 
 ```sh
-# Clone and apply all dotfiles
-chezmoi init https://github.com/leekhang/dotfiles
-chezmoi apply
-
-# Install skills for all agents
-./bootstrap/bootstrap-skills.sh
-
-# Install tools
-./bootstrap/bootstrap-tools.sh
+git clone https://github.com/leekhang/dotfiles
+cd dotfiles
+./bootstrap/setup.sh
 ```
+
+`setup.sh` handles everything interactively — OS detection, chezmoi install, dotfile apply, and guided setup for each component.
 
 ## Structure
 
 ```
 dotfiles/
   bootstrap/
+    setup.sh                # Main interactive setup (start here)
+    aliases.sh              # Portable alias definitions
     bootstrap-skills.sh     # Install skills for all agents
     bootstrap-tools.sh      # Install CLI tools (OS-aware)
   dot_claude/
