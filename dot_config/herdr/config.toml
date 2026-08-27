@@ -1,0 +1,83 @@
+onboarding = false
+[theme]
+name = "terminal"
+auto_switch = false
+
+[theme.custom]
+sidebar_bg = "#0d1117"
+active_row_bg = "#161b22"
+selection_bg = "#161b22"
+panel_bg = "#0d1117"
+accent = "#58a6ff"
+green = "#3fb950"
+blue = "#58a6ff"
+red = "#ff7b72"
+yellow = "#d29922"
+
+[keys]
+prefix = "ctrl+s"
+
+# splits and panes: same keys as tmux
+split_vertical = "prefix+|"
+split_horizontal = "prefix+minus"
+new_tab = "prefix+t"
+close_pane = "prefix+x"
+close_tab = "prefix+shift+x"
+next_tab = "prefix+n"
+previous_tab = "prefix+p"
+
+new_workspace = "prefix+c"
+next_agent = "prefix+."
+previous_agent = "prefix+,"
+next_workspace = "prefix+>"
+previous_workspace = "prefix+<"
+
+# navigate mode: keep arrow keys, add j/k
+navigate_workspace_down = ["down", "j"]
+navigate_workspace_up = ["up", "k"]
+
+[[keys.command]]
+key = "ctrl+h"
+type = "plugin_action"
+command = "herdr-splits.nav-left"
+
+[[keys.command]]
+key = "ctrl+j"
+type = "plugin_action"
+command = "herdr-splits.nav-down"
+
+[[keys.command]]
+key = "ctrl+k"
+type = "plugin_action"
+command = "herdr-splits.nav-up"
+
+[[keys.command]]
+key = "ctrl+l"
+type = "plugin_action"
+command = "herdr-splits.nav-right"
+
+[[keys.command]]
+key = "alt+h"
+type = "plugin_action"
+command = "herdr-splits.resize-left"
+
+[[keys.command]]
+key = "alt+j"
+type = "plugin_action"
+command = "herdr-splits.resize-down"
+
+[[keys.command]]
+key = "alt+k"
+type = "plugin_action"
+command = "herdr-splits.resize-up"
+
+[[keys.command]]
+key = "alt+l"
+type = "plugin_action"
+command = "herdr-splits.resize-right"
+
+[ui.toast]
+delivery = "system"
+
+[ui]
+show_agent_labels_on_pane_borders = true

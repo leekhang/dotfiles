@@ -53,6 +53,7 @@ echo ""
 COMPONENTS=$(gum choose --no-limit \
   --header "What would you like to set up? (space to select, enter to confirm)" \
   "Shell Environment" \
+  "Neovim" \
   "Agent Configs" \
   "Skills" \
   "Tools")
@@ -123,8 +124,13 @@ if echo "$COMPONENTS" | grep -q "Shell Environment"; then
     echo "Added 'source ~/.aliases' to ~/.zshrc"
   fi
 
-  # tmux
-  if gum confirm "Set up tmux?"; then
+  # Terminal Multiplexer
+  MULTIPLEXERS=$(gum choose --no-limit \
+    --header "Which terminal multiplexer(s) would you like to set up? (space to select, enter to confirm)" \
+    "tmux" \
+    "herdr")
+
+  if echo "$MULTIPLEXERS" | grep -q "tmux"; then
     case $OS in
       mac) brew install tmux ;;
       linux) sudo apt install -y tmux ;;
@@ -168,6 +174,66 @@ fi'
       fi
     fi
   fi
+
+  if echo "$MULTIPLEXERS" | grep -q "herdr"; then
+    if ! command -v herdr &>/dev/null; then
+      curl -fsSL https://herdr.dev/install.sh | sh
+    fi
+
+    if [ -f ~/.config/herdr/config.toml ]; then
+      mv ~/.config/herdr/config.toml ~/.config/herdr/config.toml.bak
+      echo "Backed up existing herdr config.toml to config.toml.bak"
+    fi
+
+    chezmoi apply ~/.config/herdr/config.toml
+    herdr plugin install lmilojevicc/herdr-splits.nvim
+    echo "Installed herdr config.toml — herdr-splits plugin installed for Neovim pane navigation."
+
+    if gum confirm "Auto-start herdr on SSH login? (recommended for headless servers)"; then
+      HERDR_BLOCK='
+# dotfiles: herdr autostart
+if [[ -z "$HERDR_ENV" ]]; then
+  herdr
+fi'
+      if ! grep -q "dotfiles: herdr autostart" ~/.zshrc 2>/dev/null; then
+        echo "$HERDR_BLOCK" >> ~/.zshrc
+        echo "Herdr autostart added to ~/.zshrc"
+      fi
+    fi
+  fi
+fi
+
+# ── Neovim ──────────────────────────────────────────────────────
+
+if echo "$COMPONENTS" | grep -q "Neovim"; then
+  echo ""
+  echo "── Neovim ──"
+
+  case $OS in
+    mac) brew install neovim ;;
+    linux) sudo apt install -y neovim ;;
+  esac
+
+  # Build tooling for nvim-treesitter's :TSUpdate and telescope-fzf-native's build=make
+  case $OS in
+    mac) xcode-select --install 2>/dev/null || true ;;
+    linux) sudo apt install -y build-essential ;;
+  esac
+
+  # Node.js — several Mason-managed LSP servers/formatters (ts_ls, eslint, html,
+  # cssls, basedpyright, prettier) are npm-distributed
+  if ! command -v node &>/dev/null; then
+    case $OS in
+      mac) brew install node ;;
+      linux) sudo apt install -y nodejs npm ;;
+    esac
+  fi
+
+  chezmoi apply ~/.config/nvim
+
+  echo "Syncing Neovim plugins (headless)..."
+  nvim --headless "+Lazy! sync" +qa
+  echo "Neovim config installed. Open a real file in nvim to finish installing LSP servers/formatters via Mason."
 fi
 
 # ── Agent Configs ──────────────────────────────────────────────

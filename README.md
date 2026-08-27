@@ -24,9 +24,15 @@ dotfiles/
   dot_claude/
     settings.json.tmpl      # Claude Code config (API key templated)
     statusline-command.sh   # Claude Code statusline script
+  dot_config/
+    nvim/                   # Neovim config (lazy.nvim) — mason LSPs, herdr/tmux split nav
+    herdr/
+      config.toml           # Herdr theme + keybindings
   dot_zshrc                 # Zsh config
   private_dot_tmux.conf     # Tmux config with Catppuccin theme
 ```
+
+Neovim's `lua/plugins/herdr-splits.lua` and `lua/plugins/nvim-tmux-navigator.lua` are mutually exclusive via a `HERDR_ENV` check, so the same config works for either multiplexer without edits.
 
 ## Skills
 
