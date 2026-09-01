@@ -23,6 +23,11 @@
 # Runs on whatever machine it's invoked on -- no hostname/SSH baked in.
 # `npx skills` tracks state relative to cwd, so Claude-side detection always
 # runs from $HOME regardless of where this script itself was invoked from.
+#
+# Skills model (v2): top-level `.skills` is shared across ALL agents.
+# `.agents.<agent>.skills` is per-agent extras on top of shared. Each skill
+# entry's `.install` may be a plain string (same for all agents) or an
+# object `{"claude":"...","hermes":"..."}` for per-agent commands.
 set -u
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 MANIFEST="$REPO_DIR/agent-tools.json"
@@ -37,6 +42,13 @@ case "$AGENT" in
   pi) log "agent 'pi' is a placeholder -- no install mechanism yet"; exit 0 ;;
   *) log "unknown agent '$AGENT' (want: claude|hermes|pi)"; exit 1 ;;
 esac
+
+# ---- helpers for shared+per-agent skills ----
+# Resolve the install command for a given agent from an entry where
+# .install may be a string (shared) or an object {claude,hermes,pi}.
+# Usage in jq: install_for($agent)
+# We inline the expression rather than defining a jq function to keep
+# compatibility with older jq.
 
 # ---- detection ----
 claude_installed_skill_sources()     { (cd "$HOME" && npx skills list --json 2>/dev/null) | jq -r '[.[]|select(.source!=null)|.source]|unique|.[]'; }
@@ -56,30 +68,41 @@ hermes_installed_plugin_names() { hermes plugins list --json 2>/dev/null | jq -r
 # ---- sync: install what the manifest wants but isn't present ----
 sync_claude() {
   local have
+  local agent="claude"
   have="$(claude_installed_skill_sources)"
   while IFS=$'\t' read -r source cmd; do
     [ -z "$source" ] && continue
+    [ -z "$cmd" ] && { log "skipping Claude skill source '$source' -- no install command for $agent"; continue; }
     grep -qxF "$source" <<<"$have" || { log "installing Claude skill source: $source"; (cd "$HOME" && eval "$cmd") || log "FAILED: $cmd"; }
-  done < <(jq -r '.agents.claude.skills[] | select(.source!=null) | [.source,.install] | @tsv' "$MANIFEST")
+  done < <(jq -r --arg agent "$agent" '
+    ((.skills // []) + (.agents[$agent].skills // []))[]
+    | select(.source!=null)
+    | [.source, (if .install == null then "" elif (.install|type)=="object" then (.install[$agent] // "") else .install end)]
+    | @tsv' "$MANIFEST")
 
   have="$(claude_installed_local_skill_names)"
   while IFS=$'\t' read -r name cmd; do
     [ -z "$name" ] && continue
     if ! grep -qxF "$name" <<<"$have"; then
       if [ -z "$cmd" ]; then
-        log "local Claude skill '$name' missing and has no install command (hand-authored, no reproducible source) -- skipping, add it by hand if needed"
+        log "local Claude skill '$name' missing and has no install command for $agent -- skipping"
       else
         log "installing local Claude skill: $name"
         eval "$cmd" || log "FAILED: $cmd"
       fi
     fi
-  done < <(jq -r '.agents.claude.skills[] | select(.name!=null) | [.name,(.install//"")] | @tsv' "$MANIFEST")
+  done < <(jq -r --arg agent "$agent" '
+    ((.skills // []) + (.agents[$agent].skills // []))[]
+    | select(.name!=null)
+    | [.name, (if .install == null then "" elif (.install|type)=="object" then (.install[$agent] // "") else .install end)]
+    | @tsv' "$MANIFEST")
 
   # Bundle entries: one install command produces several named skills at once
   # (e.g. a course installer). Run the command once if ANY name is missing.
   have="$(claude_installed_local_skill_names)"
   while IFS=$'\t' read -r names cmd; do
     [ -z "$names" ] && continue
+    [ -z "$cmd" ] && { log "skipping Claude skill bundle '$names' -- no install command for $agent"; continue; }
     missing=0
     IFS=',' read -ra name_arr <<<"$names"
     for n in "${name_arr[@]}"; do
@@ -89,7 +112,11 @@ sync_claude() {
       log "installing Claude skill bundle: $names"
       eval "$cmd" || log "FAILED: $cmd"
     fi
-  done < <(jq -r '.agents.claude.skills[] | select(.names!=null) | [(.names|join(",")),.install] | @tsv' "$MANIFEST")
+  done < <(jq -r --arg agent "$agent" '
+    ((.skills // []) + (.agents[$agent].skills // []))[]
+    | select(.names!=null)
+    | [(.names|join(",")), (if .install == null then "" elif (.install|type)=="object" then (.install[$agent] // "") else .install end)]
+    | @tsv' "$MANIFEST")
 
   have="$(claude_installed_marketplace_names)"
   while IFS=$'\t' read -r name source repo path; do
@@ -116,11 +143,64 @@ sync_claude() {
 
 sync_hermes() {
   local have
+  local agent="hermes"
   have="$(hermes_installed_tap_sources)"
   while IFS=$'\t' read -r source cmd; do
     [ -z "$source" ] && continue
+    [ -z "$cmd" ] && { log "skipping Hermes tap '$source' -- no install command for $agent"; continue; }
     grep -qxF "$source" <<<"$have" || { log "installing Hermes tap: $source"; eval "$cmd" || log "FAILED: $cmd"; }
-  done < <(jq -r '.agents.hermes.skills[] | [.source,.install] | @tsv' "$MANIFEST")
+  done < <(jq -r --arg agent "$agent" '
+    ((.skills // []) + (.agents[$agent].skills // []))[]
+    | select(.source!=null)
+    | [.source, (if .install == null then "" elif (.install|type)=="object" then (.install[$agent] // "") else .install end)]
+    | @tsv' "$MANIFEST")
+
+  # Hermes local skills with no tap source (tracked by .name), e.g. hand-authored
+  # skills. Sync by checking if the skill dir exists; install via per-agent cmd.
+  # Detection for these is best-effort: check for directory existence under
+  # ~/.hermes/skills/. We reuse tap detection where possible, but local skills
+  # won't appear in taps.json, so we check dir presence here.
+  while IFS=$'\t' read -r name cmd; do
+    [ -z "$name" ] && continue
+    [ -z "$cmd" ] && { log "skipping Hermes local skill '$name' -- no install command for $agent"; continue; }
+    if [ ! -d "$HOME/.hermes/skills/$name" ] && [ ! -d "$HOME/.hermes/skills/.hub" ]; then
+      # hub dir missing usually means no skills at all -- still try install
+      log "installing Hermes local skill: $name"
+      eval "$cmd" || log "FAILED: $cmd"
+    elif [ ! -d "$HOME/.hermes/skills/$name" ]; then
+      # Check if not already present as a tap or local dir
+      # For local skills, existence of the directory is the signal
+      if ! hermes_installed_tap_sources | grep -qxF "$name" 2>/dev/null; then
+        log "installing Hermes local skill: $name"
+        eval "$cmd" || log "FAILED: $cmd"
+      fi
+    fi
+  done < <(jq -r --arg agent "$agent" '
+    ((.skills // []) + (.agents[$agent].skills // []))[]
+    | select(.name!=null)
+    | [.name, (if .install == null then "" elif (.install|type)=="object" then (.install[$agent] // "") else .install end)]
+    | @tsv' "$MANIFEST")
+
+  # Bundle entries for Hermes (same pattern as Claude)
+  while IFS=$'\t' read -r names cmd; do
+    [ -z "$names" ] && continue
+    [ -z "$cmd" ] && { log "skipping Hermes skill bundle '$names' -- no install command for $agent"; continue; }
+    missing=0
+    # For Hermes bundles, check tap sources + local dirs; if any name missing, install
+    have_names="$(hermes_installed_tap_sources; ls -1 "$HOME/.hermes/skills" 2>/dev/null)"
+    IFS=',' read -ra name_arr <<<"$names"
+    for n in "${name_arr[@]}"; do
+      grep -qxF "$n" <<<"$have_names" || missing=1
+    done
+    if [ "$missing" = 1 ]; then
+      log "installing Hermes skill bundle: $names"
+      eval "$cmd" || log "FAILED: $cmd"
+    fi
+  done < <(jq -r --arg agent "$agent" '
+    ((.skills // []) + (.agents[$agent].skills // []))[]
+    | select(.names!=null)
+    | [(.names|join(",")), (if .install == null then "" elif (.install|type)=="object" then (.install[$agent] // "") else .install end)]
+    | @tsv' "$MANIFEST")
 
   have="$(hermes_installed_plugin_names)"
   while IFS=$'\t' read -r name cmd; do
@@ -132,17 +212,22 @@ sync_hermes() {
 # ---- drift: what's installed that the manifest doesn't know about ----
 drift_claude() {
   local es el ep
-  es="$(comm -23 <(claude_installed_skill_sources|LC_ALL=C sort -u) <(jq -r '.agents.claude.skills[]|select(.source!=null)|.source' "$MANIFEST"|LC_ALL=C sort -u))"
-  el="$(comm -23 <(claude_installed_local_skill_names|LC_ALL=C sort -u) <(jq -r '.agents.claude.skills[] | ((.name // empty), (.names[]? // empty))' "$MANIFEST"|LC_ALL=C sort -u))"
+  es="$(comm -23 <(claude_installed_skill_sources|LC_ALL=C sort -u) <(jq -r --arg agent "claude" '((.skills // []) + (.agents[$agent].skills // []))[] | select(.source!=null) | .source' "$MANIFEST"|LC_ALL=C sort -u))"
+  el="$(comm -23 <(claude_installed_local_skill_names|LC_ALL=C sort -u) <(jq -r --arg agent "claude" '((.skills // []) + (.agents[$agent].skills // []))[] | ((.name // empty), (.names[]? // empty))' "$MANIFEST"|LC_ALL=C sort -u))"
   ep="$(comm -23 <(claude_installed_plugin_ids|LC_ALL=C sort -u) <(jq -r '.agents.claude.plugins[].id' "$MANIFEST"|LC_ALL=C sort -u))"
   jq -n --arg s "$es" --arg l "$el" --arg p "$ep" \
     '{skill_sources:($s|split("\n")|map(select(length>0))), local_skills:($l|split("\n")|map(select(length>0))), plugins:($p|split("\n")|map(select(length>0)))}'
 }
 drift_hermes() {
   local et ep
-  et="$(comm -23 <(hermes_installed_tap_sources|LC_ALL=C sort -u) <(jq -r '.agents.hermes.skills[].source' "$MANIFEST"|LC_ALL=C sort -u))"
+  et="$(comm -23 <(hermes_installed_tap_sources|LC_ALL=C sort -u) <(jq -r --arg agent "hermes" '((.skills // []) + (.agents[$agent].skills // []))[] | select(.source!=null) | .source' "$MANIFEST"|LC_ALL=C sort -u))"
+  # herdr is tracked as a .name (not .source) but installs as a tap herdrdev/herdr on Hermes.
+  # If herdr is expected as a name, don't flag its tap as drift.
+  if jq -e --arg agent "hermes" '((.skills // []) + (.agents[$agent].skills // []))[] | select(.name=="herdr")' "$MANIFEST" >/dev/null; then
+    et="$(echo "$et" | grep -vxF "herdrdev/herdr" || true)"
+  fi
   ep="$(comm -23 <(hermes_installed_plugin_names|LC_ALL=C sort -u) <(jq -r '.agents.hermes.plugins[]?.name' "$MANIFEST"|LC_ALL=C sort -u))"
-  jq -n --arg t "$et" --arg p "$ep" '{skill_taps:($t|split("\n")|map(select(length>0))), plugins:($p|split("\n")|map(select(length>0)))}'
+  jq -n --arg t "$et" --arg p "$ep" '{skill_taps:($t|split("\n")|map(select(length>0))), local_skills:[], plugins:($p|split("\n")|map(select(length>0)))}'
 }
 
 drift_empty() { jq -e '((.skill_sources//.skill_taps//[])+(.local_skills//[])+.plugins|length)==0' <<<"$1" >/dev/null; }

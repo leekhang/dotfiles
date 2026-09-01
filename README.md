@@ -16,9 +16,9 @@ cd dotfiles
 
 ```
 dotfiles/
-  agent-tools.json          # Single source of truth: which skills/plugins each agent should have
+  agent-tools.json          # Single source of truth: top-level `skills` (shared) + per-agent extras
   local-skills/              # Full copies of hand-authored skills with no external source
-    clickable-brief/          # (agent-tools.json's install command copies these into place)
+    clickable-brief/          # (agent-tools.json's install command copies these into place for each agent)
   bootstrap/
     setup.sh                # Main interactive setup (start here)
     aliases.sh              # Portable alias definitions
@@ -39,7 +39,7 @@ Neovim's `lua/plugins/herdr-splits.lua` and `lua/plugins/nvim-tmux-navigator.lua
 
 ## Skills & plugins
 
-`agent-tools.json` is the single source of truth for which skills, marketplaces, and plugins should be installed on which agent (currently `claude` and `hermes`; `pi` is a placeholder for a future agent). `bootstrap/sync-agent-tools.sh <agent> sync` reads it and installs anything missing — idempotent, safe to re-run, silent if nothing needs doing.
+`agent-tools.json` is the single source of truth for what should be installed. Top-level `skills` is **shared across all agents** — every skill there is expected on every agent. `agents.<agent>.skills` is for rare per-agent extras on top of shared. `bootstrap/sync-agent-tools.sh <agent> sync` merges `skills + agents.<agent>.skills` and installs anything missing — idempotent, safe to re-run, silent if nothing needs doing. Each skill's `install` may be a single string or an object `{ "claude": "...", "hermes": "..." }` when the command differs per agent.
 
 This is also wired into hooks, tracked in this repo so any agent on any machine can install them:
 - **Claude Code**: a `SessionStart` hook re-syncs and reports anything installed that isn't in the manifest yet (drift), and a `PostToolUse` hook catches new installs as they happen and flags them for confirmation — both configured in `dot_claude/settings.json.tmpl`.
@@ -47,7 +47,7 @@ This is also wired into hooks, tracked in this repo so any agent on any machine 
 
 In both cases the direction is: dotfiles → agent syncs automatically; agent → dotfiles (something new got installed) always asks before writing back to `agent-tools.json`.
 
-`tutor@tutor-marketplace` and its marketplace are marked `"portable": false` in the manifest and intentionally skipped by `sync` on a fresh machine — that marketplace is a local directory path (`/Users/khang/repos/tutor`), not something a plain install can reproduce elsewhere.
+`tutor@tutor-marketplace` and its marketplace are marked `"portable": false` in the manifest and intentionally skipped by `sync` on a fresh machine — that marketplace is a local directory path (`/Users/khang/repos/tutor`), not something a plain install can reproduce elsewhere. These per-agent `marketplaces`/`plugins` remain siloed by design — only `skills` are shared.
 
 Most manifest entries have an `install` command that pulls from a real external source (a repo, a tap, an installer) — never a local copy of those, so they can't go stale. The one exception is `local-skills/`: skills hand-authored directly through an agent session, with no external source at all. For those, the dotfiles copy *is* the source of truth, and `install` just copies it into place.
 

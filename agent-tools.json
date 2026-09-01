@@ -1,52 +1,93 @@
 {
-  "version": 1,
+  "version": 2,
+  "skills": [
+    {
+      "source": "googleworkspace/cli",
+      "install": {
+        "claude": "npx skills add https://github.com/googleworkspace/cli",
+        "hermes": "hermes skills tap add googleworkspace/cli"
+      }
+    },
+    {
+      "source": "mattpocock/skills",
+      "install": {
+        "claude": "npx skills@latest add mattpocock/skills",
+        "hermes": "hermes skills tap add mattpocock/skills"
+      }
+    },
+    {
+      "source": "figma/mcp-server-guide",
+      "install": {
+        "claude": "npx skills add figma/mcp-server-guide",
+        "hermes": "hermes skills tap add figma/mcp-server-guide"
+      }
+    },
+    {
+      "name": "agent-reach",
+      "install": {
+        "claude": "python3 -m venv ~/.agent-reach-venv && ~/.agent-reach-venv/bin/pip install -q https://github.com/Panniantong/agent-reach/archive/main.zip && ~/.agent-reach-venv/bin/agent-reach install --env=auto --system"
+      },
+      "note": "Not from npx skills add -- own installer drops a SKILL.md directly, so it's tracked by name here instead of source. See https://github.com/Panniantong/Agent-Reach. Hermes install is intentionally omitted -- the installer only targets Claude Code/Cursor today (it writes to ~/.claude/skills and ~/.agents/skills). Add a hermes key here once we have a verified hermes install command."
+    },
+    {
+      "name": "clickable-brief",
+      "install": {
+        "claude": "mkdir -p \"$HOME/.claude/skills/clickable-brief\" && cp -R \"$REPO_DIR/local-skills/clickable-brief/.\" \"$HOME/.claude/skills/clickable-brief/\"",
+        "hermes": "mkdir -p \"$HOME/.hermes/skills/clickable-brief\" && cp -R \"$REPO_DIR/local-skills/clickable-brief/.\" \"$HOME/.hermes/skills/clickable-brief/\""
+      },
+      "note": "Hand-authored directly through an agent session -- no external source to pull from, so the dotfiles copy under local-skills/clickable-brief/ IS the source of truth (not a stale mirror of something else)."
+    },
+    {
+      "names": [
+        "animate",
+        "animation-accessibility",
+        "animation-performance",
+        "animation-vocabulary",
+        "css-animations",
+        "debug-animation",
+        "find-animation-opportunities",
+        "gesture-ui",
+        "improve-animations",
+        "motion-brief",
+        "motion-react",
+        "pick-ui-library",
+        "review-animations",
+        "scroll-animations"
+      ],
+      "install": {
+        "claude": "npx @animationsdev/install --token=\"$(chezmoi data --format=json | jq -r .animationsdev_token)\"",
+        "hermes": "npx @animationsdev/install --token=\"$(chezmoi data --format=json | jq -r .animationsdev_token)\""
+      },
+      "note": "The 'Animations on the Web' course skill set (animations.dev). One installer call produces all of these. Requires animationsdev_token in ~/.config/chezmoi/chezmoi.toml's [data] section (a personal license token -- never hardcode it here, this file is public on GitHub)."
+    },
+    {
+      "name": "herdr",
+      "install": {
+        "claude": "npx skills add herdrdev/herdr --skill herdr -g",
+        "hermes": "hermes skills tap add herdrdev/herdr"
+      },
+      "note": "Installed via npx skills add but shows source:null in `npx skills list --json` on this machine -- tracked by name to match its actual detected state."
+    },
+    {
+      "name": "pullimg",
+      "install": {
+        "claude": "mkdir -p \"$HOME/.claude/skills/pullimg\" && cp -R \"$REPO_DIR/local-skills/pullimg/.\" \"$HOME/.claude/skills/pullimg/\"",
+        "hermes": "mkdir -p \"$HOME/.hermes/skills/pullimg\" && cp -R \"$REPO_DIR/local-skills/pullimg/.\" \"$HOME/.hermes/skills/pullimg/\""
+      },
+      "note": "Hand-authored pullimg skill for Ghostty drag-drop over SSH. local-skills/pullimg/ is the source of truth."
+    },
+    {
+      "name": "yuanbao",
+      "install": {
+        "claude": "mkdir -p \"$HOME/.claude/skills/yuanbao\" && cp -R \"$REPO_DIR/local-skills/yuanbao/.\" \"$HOME/.claude/skills/yuanbao/\"",
+        "hermes": "mkdir -p \"$HOME/.hermes/skills/yuanbao\" && cp -R \"$REPO_DIR/local-skills/yuanbao/.\" \"$HOME/.hermes/skills/yuanbao/\""
+      },
+      "note": "Yuanbao groups skill. local-skills/yuanbao/ is the source of truth."
+    }
+  ],
   "agents": {
     "claude": {
-      "skills": [
-        {
-          "source": "googleworkspace/cli",
-          "install": "npx skills add https://github.com/googleworkspace/cli"
-        },
-        {
-          "source": "mattpocock/skills",
-          "install": "npx skills@latest add mattpocock/skills"
-        },
-        {
-          "name": "agent-reach",
-          "install": "python3 -m venv ~/.agent-reach-venv && ~/.agent-reach-venv/bin/pip install -q https://github.com/Panniantong/agent-reach/archive/main.zip && ~/.agent-reach-venv/bin/agent-reach install --env=auto --system",
-          "note": "Not from npx skills add -- own installer drops a SKILL.md directly, so it's tracked by name here instead of source. See https://github.com/Panniantong/Agent-Reach."
-        },
-        {
-          "name": "clickable-brief",
-          "install": "mkdir -p \"$HOME/.claude/skills/clickable-brief\" && cp -R \"$REPO_DIR/local-skills/clickable-brief/.\" \"$HOME/.claude/skills/clickable-brief/\"",
-          "note": "Hand-authored directly through Claude Code -- no external source to pull from, so the dotfiles copy under local-skills/clickable-brief/ IS the source of truth (not a stale mirror of something else)."
-        },
-        {
-          "names": [
-            "animate",
-            "animation-accessibility",
-            "animation-performance",
-            "animation-vocabulary",
-            "css-animations",
-            "debug-animation",
-            "find-animation-opportunities",
-            "gesture-ui",
-            "improve-animations",
-            "motion-brief",
-            "motion-react",
-            "pick-ui-library",
-            "review-animations",
-            "scroll-animations"
-          ],
-          "install": "npx @animationsdev/install --token=\"$(chezmoi data --format=json | jq -r .animationsdev_token)\"",
-          "note": "The 'Animations on the Web' course skill set (animations.dev). One installer call produces all of these. Requires animationsdev_token in ~/.config/chezmoi/chezmoi.toml's [data] section (a personal license token -- never hardcode it here, this file is public on GitHub)."
-        },
-        {
-          "name": "herdr",
-          "install": "npx skills add herdrdev/herdr --skill herdr -g",
-          "note": "Installed via npx skills add but shows source:null in `npx skills list --json` on this machine -- tracked by name to match its actual detected state."
-        }
-      ],
+      "skills": [],
       "marketplaces": [
         { "name": "claude-plugins-official", "builtin": true },
         {
@@ -73,25 +114,12 @@
       ]
     },
     "hermes": {
-      "_comment": "Hermes state here is the real ZimaBoard instance (ssh zima), not this Mac's local ~/.hermes shell/client.",
-      "skills": [
-        {
-          "source": "googleworkspace/cli",
-          "install": "hermes skills tap add googleworkspace/cli"
-        },
-        {
-          "source": "mattpocock/skills",
-          "install": "hermes skills tap add mattpocock/skills"
-        },
-        {
-          "source": "figma/mcp-server-guide",
-          "install": "hermes skills tap add figma/mcp-server-guide"
-        }
-      ],
+      "_comment": "Hermes state here is the real ZimaBoard instance (ssh zima), not this Mac's local ~/.hermes shell/client. Skills are shared top-level; agents.hermes.skills is for Hermes-only extras.",
+      "skills": [],
       "plugins": []
     },
     "pi": {
-      "_comment": "Placeholder. No 'pi' binary or config exists yet. Adding real support later is data-only: add entries here, then add 'pi' branches to the detect_/sync_/drift_ functions in sync-agent-tools.sh. No new hook mechanism needed.",
+      "_comment": "Placeholder. No 'pi' binary or config exists yet. Adding real support later is data-only: add entries to top-level skills with an install.pi, then add 'pi' branches to the detect_/sync_/drift_ functions in sync-agent-tools.sh. No new hook mechanism needed.",
       "skills": [],
       "plugins": []
     }
