@@ -3,9 +3,62 @@
     "type": "command",
     "command": "bash /Users/khang/.claude/statusline-command.sh"
   },
-  "enabledPlugins": {
-    "figma@claude-plugins-official": true
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/khang/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.sourceDir }}/bootstrap/sync-agent-tools.sh claude session-start",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "{{ .chezmoi.sourceDir }}/bootstrap/sync-agent-tools.sh claude post-tool-use",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
   },
+  "enabledPlugins": {
+    "figma@claude-plugins-official": true,
+    "godot-prompter@skillsmith": true,
+    "tutor@tutor-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "skillsmith": {
+      "source": {
+        "source": "github",
+        "repo": "jame581/skillsmith"
+      }
+    },
+    "tutor-marketplace": {
+      "source": {
+        "source": "directory",
+        "path": "/Users/khang/repos/tutor"
+      }
+    }
+  },
+  "tui": "fullscreen",
   "env": {
     "SKILLSMP_API_KEY": "{{ .skillsmp_api_key }}"
   }

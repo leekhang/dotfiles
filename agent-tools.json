@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "agents": {
+    "claude": {
+      "skills": [
+        {
+          "source": "googleworkspace/cli",
+          "install": "npx skills add https://github.com/googleworkspace/cli"
+        },
+        {
+          "source": "mattpocock/skills",
+          "install": "npx skills@latest add mattpocock/skills"
+        }
+      ],
+      "marketplaces": [
+        { "name": "claude-plugins-official", "builtin": true },
+        {
+          "name": "skillsmith",
+          "source": "github",
+          "repo": "jame581/skillsmith"
+        },
+        {
+          "name": "tutor-marketplace",
+          "source": "directory",
+          "path": "/Users/khang/repos/tutor",
+          "portable": false,
+          "note": "Local dev marketplace. Only reproducible on a machine that has the tutor repo cloned at exactly this path. sync will not auto-add this on a fresh machine."
+        }
+      ],
+      "plugins": [
+        { "id": "figma@claude-plugins-official" },
+        { "id": "godot-prompter@skillsmith" },
+        {
+          "id": "tutor@tutor-marketplace",
+          "portable": false,
+          "note": "Depends on the non-portable tutor-marketplace above."
+        }
+      ]
+    },
+    "hermes": {
+      "_comment": "Hermes state here is the real ZimaBoard instance (ssh zima), not this Mac's local ~/.hermes shell/client.",
+      "skills": [
+        {
+          "source": "googleworkspace/cli",
+          "install": "hermes skills tap add googleworkspace/cli"
+        },
+        {
+          "source": "mattpocock/skills",
+          "install": "hermes skills tap add mattpocock/skills"
+        },
+        {
+          "source": "figma/mcp-server-guide",
+          "install": "hermes skills tap add figma/mcp-server-guide"
+        }
+      ],
+      "plugins": []
+    },
+    "pi": {
+      "_comment": "Placeholder. No 'pi' binary or config exists yet. Adding real support later is data-only: add entries here, then add 'pi' branches to the detect_/sync_/drift_ functions in sync-agent-tools.sh. No new hook mechanism needed.",
+      "skills": [],
+      "plugins": []
+    }
+  }
+}

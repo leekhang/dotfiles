@@ -44,7 +44,7 @@ chezmoi apply
 # gum
 if ! command -v gum &>/dev/null; then
   echo "Installing gum (required for setup UI)..."
-  bash "$BOOTSTRAP_DIR/bootstrap-tools.sh"
+  bash "$BOOTSTRAP_DIR/bootstrap-devtools.sh"
 fi
 
 # ── Component Selection ────────────────────────────────────────
@@ -247,6 +247,10 @@ if echo "$COMPONENTS" | grep -q "Agent Configs"; then
     chezmoi apply ~/.claude/statusline-command.sh
     echo "Claude Code config installed."
   fi
+
+  if command -v hermes &>/dev/null && gum confirm "Set up Hermes hooks?"; then
+    bash "$BOOTSTRAP_DIR/ensure-hermes-hooks.sh"
+  fi
 fi
 
 # ── Skills ─────────────────────────────────────────────────────
@@ -254,7 +258,10 @@ fi
 if echo "$COMPONENTS" | grep -q "Skills"; then
   echo ""
   echo "── Skills ──"
-  bash "$BOOTSTRAP_DIR/bootstrap-skills.sh"
+  bash "$BOOTSTRAP_DIR/sync-agent-tools.sh" claude sync
+  if command -v hermes &>/dev/null; then
+    bash "$BOOTSTRAP_DIR/sync-agent-tools.sh" hermes sync
+  fi
 fi
 
 # ── Tools ──────────────────────────────────────────────────────
@@ -262,7 +269,7 @@ fi
 if echo "$COMPONENTS" | grep -q "Tools"; then
   echo ""
   echo "── Tools ──"
-  bash "$BOOTSTRAP_DIR/bootstrap-tools.sh"
+  bash "$BOOTSTRAP_DIR/bootstrap-devtools.sh"
 fi
 
 echo ""

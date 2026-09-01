@@ -26,6 +26,16 @@ if ! command -v gum &>/dev/null; then
   esac
 fi
 
+# jq (required by sync-agent-tools.sh)
+if ! command -v jq &>/dev/null; then
+  echo "Installing jq..."
+  case $OS in
+    mac) brew install jq ;;
+    linux) sudo apt install -y jq ;;
+    *) echo "Please install jq manually: https://jqlang.org" ;;
+  esac
+fi
+
 # eza
 echo "Installing eza..."
 case $OS in
