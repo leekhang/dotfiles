@@ -10,6 +10,41 @@
         {
           "source": "mattpocock/skills",
           "install": "npx skills@latest add mattpocock/skills"
+        },
+        {
+          "name": "agent-reach",
+          "install": "python3 -m venv ~/.agent-reach-venv && ~/.agent-reach-venv/bin/pip install -q https://github.com/Panniantong/agent-reach/archive/main.zip && ~/.agent-reach-venv/bin/agent-reach install --env=auto --system",
+          "note": "Not from npx skills add -- own installer drops a SKILL.md directly, so it's tracked by name here instead of source. See https://github.com/Panniantong/Agent-Reach."
+        },
+        {
+          "name": "clickable-brief",
+          "install": "mkdir -p \"$HOME/.claude/skills/clickable-brief\" && cp -R \"$REPO_DIR/local-skills/clickable-brief/.\" \"$HOME/.claude/skills/clickable-brief/\"",
+          "note": "Hand-authored directly through Claude Code -- no external source to pull from, so the dotfiles copy under local-skills/clickable-brief/ IS the source of truth (not a stale mirror of something else)."
+        },
+        {
+          "names": [
+            "animate",
+            "animation-accessibility",
+            "animation-performance",
+            "animation-vocabulary",
+            "css-animations",
+            "debug-animation",
+            "find-animation-opportunities",
+            "gesture-ui",
+            "improve-animations",
+            "motion-brief",
+            "motion-react",
+            "pick-ui-library",
+            "review-animations",
+            "scroll-animations"
+          ],
+          "install": "npx @animationsdev/install --token=\"$(chezmoi data --format=json | jq -r .animationsdev_token)\"",
+          "note": "The 'Animations on the Web' course skill set (animations.dev). One installer call produces all of these. Requires animationsdev_token in ~/.config/chezmoi/chezmoi.toml's [data] section (a personal license token -- never hardcode it here, this file is public on GitHub)."
+        },
+        {
+          "name": "herdr",
+          "install": "npx skills add herdrdev/herdr --skill herdr -g",
+          "note": "Installed via npx skills add but shows source:null in `npx skills list --json` on this machine -- tracked by name to match its actual detected state."
         }
       ],
       "marketplaces": [

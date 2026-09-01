@@ -17,6 +17,8 @@ cd dotfiles
 ```
 dotfiles/
   agent-tools.json          # Single source of truth: which skills/plugins each agent should have
+  local-skills/              # Full copies of hand-authored skills with no external source
+    clickable-brief/          # (agent-tools.json's install command copies these into place)
   bootstrap/
     setup.sh                # Main interactive setup (start here)
     aliases.sh              # Portable alias definitions
@@ -47,6 +49,8 @@ In both cases the direction is: dotfiles → agent syncs automatically; agent �
 
 `tutor@tutor-marketplace` and its marketplace are marked `"portable": false` in the manifest and intentionally skipped by `sync` on a fresh machine — that marketplace is a local directory path (`/Users/khang/repos/tutor`), not something a plain install can reproduce elsewhere.
 
+Most manifest entries have an `install` command that pulls from a real external source (a repo, a tap, an installer) — never a local copy of those, so they can't go stale. The one exception is `local-skills/`: skills hand-authored directly through an agent session, with no external source at all. For those, the dotfiles copy *is* the source of truth, and `install` just copies it into place.
+
 ## Tools
 
 ### Figma
@@ -69,6 +73,7 @@ On a new machine, create `~/.config/chezmoi/chezmoi.toml` with:
 ```toml
 [data]
     skillsmp_api_key = "your-api-key-here"
+    animationsdev_token = "your-animations.dev-license-token"
 ```
 
-Get your SkillsMPC API key from the SkillsMPC dashboard.
+Get your SkillsMPC API key from the SkillsMPC dashboard, and your animations.dev token from your account there. Never put either directly in a tracked file — this repo is public, and `agent-tools.json` reads secrets like the animations.dev token at runtime via `chezmoi data`, never hardcoded.

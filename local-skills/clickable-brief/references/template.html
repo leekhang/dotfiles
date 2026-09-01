@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Clickable Brief</title>
+<style>
+  :root{
+    --bg:#0a0a0d; --surface:#131318; --surface-hi:#1a1a22;
+    --border:rgba(255,255,255,.08); --border-hi:rgba(255,255,255,.16);
+    --text:#f2f2f5; --text-dim:#8a8a95; --text-faint:#5c5c66;
+    --accent:#8b7cf6; --accent-glow:rgba(139,124,246,.35);
+    --green:#34d399; --amber:#f5a524; --red:#f45b69; --gray:#6b7280;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+    padding:32px 32px 96px;
+  }
+  h1{font-size:22px; margin:0 0 4px;}
+  .page-sub{color:var(--text-dim); font-size:13px; margin:0 0 32px;}
+
+  .section{margin-bottom:36px;}
+  .section-head{margin-bottom:14px;}
+  .section-title{font-size:17px; font-weight:600; margin:0;}
+  .section-title .why{color:var(--text-faint); font-weight:400; font-size:14px;}
+  .section-desc{color:var(--text-dim); font-size:13px; margin:6px 0 0; max-width:760px; line-height:1.5;}
+  .section-desc code{color:#b3a9ff; font-family:var(--mono); font-size:12px; background:rgba(139,124,246,.1); padding:1px 5px; border-radius:4px;}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(360px, 1fr)); gap:16px;}
+
+  .card{
+    position:relative; background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:18px 20px; cursor:pointer; transition:border-color .15s, box-shadow .15s, background .15s;
+  }
+  .card:hover{border-color:var(--border-hi); background:var(--surface-hi);}
+  .card.selected{
+    border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 0 24px -4px var(--accent-glow);
+    border-left-width:3px;
+  }
+  .card-title{font-size:15px; font-weight:600; margin:0 0 4px; padding-right:28px;}
+  .card-desc{color:var(--text-dim); font-size:12.5px; line-height:1.4; margin:0 0 14px;}
+
+  .check{
+    position:absolute; top:16px; right:16px; width:20px; height:20px; border-radius:50%;
+    border:1.5px solid var(--border-hi); display:flex; align-items:center; justify-content:center;
+    transition:background .15s, border-color .15s;
+  }
+  .card.selected .check{background:var(--accent); border-color:var(--accent);}
+  .check svg{width:12px; height:12px; opacity:0; transition:opacity .1s;}
+  .card.selected .check svg{opacity:1;}
+
+  .visual{min-height:64px; display:flex; flex-direction:column; justify-content:center; margin-bottom:14px;}
+  .bignum{font-size:32px; font-weight:700; line-height:1;}
+  .bignum .unit{font-size:13px; font-weight:400; color:var(--text-dim); margin-left:6px;}
+  .accent-violet{color:var(--accent);} .accent-green{color:var(--green);}
+  .accent-amber{color:var(--amber);} .accent-default{color:var(--text);}
+
+  .donut-wrap{display:flex; align-items:center; gap:14px;}
+  .legend{display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--text-dim);}
+  .legend .dot{width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:6px;}
+
+  .bars-h{display:flex; flex-direction:column; gap:6px;}
+  .bar-h-row{display:flex; align-items:center; gap:8px; font-size:12px;}
+  .bar-h-label{width:78px; color:var(--text-dim); flex-shrink:0;}
+  .bar-h-track{flex:1; height:8px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden;}
+  .bar-h-fill{height:100%; border-radius:4px;}
+  .bar-h-pct{width:36px; text-align:right; color:var(--text-dim); flex-shrink:0;}
+
+  .bars-v{display:flex; align-items:flex-end; gap:4px; height:56px;}
+  .bar-v{flex:1; border-radius:3px 3px 0 0; background:var(--accent); opacity:.55;}
+
+  .stacked-h{display:flex; height:20px; border-radius:5px; overflow:hidden; margin-bottom:6px;}
+  .stacked-legend{display:flex; justify-content:space-between; font-size:11px; color:var(--text-dim);}
+
+  .heatmap{display:grid; grid-template-columns:repeat(13, 1fr); gap:3px;}
+  .heat-cell{aspect-ratio:1; border-radius:2px; background:var(--accent);}
+
+  .sparkline{width:100%; height:48px;}
+
+  .pills{display:flex; flex-wrap:wrap; gap:6px;}
+  .pill{background:rgba(255,255,255,.06); border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:12px; color:var(--text-dim);}
+
+  .avatar-chip{display:flex; align-items:center; gap:8px;}
+  .avatar-circle{width:28px; height:28px; border-radius:50%; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;}
+
+  .card-foot{display:flex; align-items:center; justify-content:space-between; font-size:11px;}
+  .badge{display:inline-flex; align-items:center; gap:5px; color:var(--text-dim);}
+  .badge .dot{width:6px; height:6px; border-radius:50%;}
+  .badge.ready .dot{background:var(--green);}
+  .badge.derived .dot{background:var(--amber);}
+  .badge.unavailable .dot{background:var(--gray);}
+  .card-source{font-family:var(--mono); color:var(--text-faint);}
+
+  .footer-bar{
+    position:fixed; bottom:0; left:0; right:0; background:#0d0d11; border-top:1px solid var(--border);
+    padding:14px 32px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .footer-count{font-size:13px; color:var(--text-dim);}
+  .footer-actions{display:flex; gap:10px;}
+  .btn{border-radius:8px; padding:9px 16px; font-size:13px; font-weight:500; cursor:pointer; border:1px solid var(--border-hi); background:transparent; color:var(--text);}
+  .btn-primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .btn:hover{filter:brightness(1.1);}
+</style>
+</head>
+<body>
+
+<h1>Clickable Brief</h1>
+<p class="page-sub">Click any card to mark it. Selections persist and are copyable as JSON — replace DATA below with the real items for this task.</p>
+
+<div id="sections"></div>
+
+<div class="footer-bar">
+  <span class="footer-count" id="footer-count">0 of 0 marked</span>
+  <div class="footer-actions">
+    <button class="btn" id="clear-btn">Clear</button>
+    <button class="btn btn-primary" id="copy-btn">Copy shortlist</button>
+  </div>
+</div>
+
+<script>
+// ---- EXAMPLE DATA — replace this whole array with the real content for the task. ----
+// One entry per section; each card must follow the schema documented in SKILL.md.
+const DATA = [
+  {
+    title: "Design tokens", subtitle: "— candidates found in the codebase",
+    description: "Pulled from <code>tokens.json</code> and component defaults.",
+    cards: [
+      {
+        id: "color-primary", title: "Primary color", description: "Brand accent used across CTAs and links.",
+        visual: { kind: "bignum", value: "#8B7CF6", unit: "hex" }, accent: "violet",
+        badge: { label: "Available now", tone: "ready" }, source: "tokens.color.primary"
+      },
+      {
+        id: "usage-split", title: "Usage split", description: "Where this token shows up across the app.",
+        visual: { kind: "donut", segments: [
+          { label: "Buttons", pct: 52, color: "#8b7cf6" },
+          { label: "Links", pct: 30, color: "#34d399" },
+          { label: "Icons", pct: 18, color: "#f5a524" }
+        ]}, accent: "default",
+        badge: { label: "Derivable", tone: "derived" }, source: "grep usage across src/"
+      },
+      {
+        id: "contrast-scores", title: "Contrast scores", description: "WCAG contrast ratio against common backgrounds.",
+        visual: { kind: "bars-h", bars: [
+          { label: "on white", pct: 78, color: "#34d399" },
+          { label: "on dark", pct: 92, color: "#34d399" },
+          { label: "on brand", pct: 41, color: "#f5a524" }
+        ]}, accent: "default",
+        badge: { label: "Derivable", tone: "derived" }, source: "computed(wcag_ratio)"
+      },
+      {
+        id: "shade-histogram", title: "Shade distribution", description: "How many components use each tint step.",
+        visual: { kind: "bars-v", bars: [4, 8, 15, 22, 30, 25, 12, 6] }, accent: "violet",
+        badge: { label: "Available now", tone: "ready" }, source: "tokens.color.primary.*"
+      },
+      {
+        id: "adoption", title: "Adoption over time", description: "Components migrated onto this token by week.",
+        visual: { kind: "sparkline", points: [2,4,5,9,8,12,15,14,18,22] }, accent: "green",
+        badge: { label: "Derivable", tone: "derived" }, source: "git log --stat"
+      },
+      {
+        id: "related-tags", title: "Related tags", description: "Other tokens frequently changed alongside this one.",
+        visual: { kind: "pills", items: ["color-secondary", "focus-ring", "hover-state", "gradient-start"] }, accent: "default",
+        badge: { label: "Unavailable", tone: "unavailable" }, source: "no co-change data yet"
+      }
+    ]
+  }
+];
+
+function renderVisual(v, accent){
+  const cls = "accent-" + (accent || "default");
+  switch(v.kind){
+    case "bignum":
+      return `<div class="bignum ${cls}">${v.value}<span class="unit">${v.unit||""}</span></div>`;
+    case "donut": {
+      const total = v.segments.reduce((a,s)=>a+s.pct,0) || 100;
+      let acc = 0;
+      const r = 24, c = 2*Math.PI*r;
+      const circles = v.segments.map(s=>{
+        const frac = s.pct/total, dash = frac*c, gap = c-dash;
+        const rotate = (acc/total)*360; acc += s.pct;
+        return `<circle r="${r}" cx="30" cy="30" fill="none" stroke="${s.color}" stroke-width="8"
+          stroke-dasharray="${dash} ${gap}" transform="rotate(${rotate} 30 30)" stroke-linecap="round"/>`;
+      }).join("");
+      const legend = v.segments.map(s=>`<div><span class="dot" style="background:${s.color}"></span>${s.label} · ${s.pct}%</div>`).join("");
+      return `<div class="donut-wrap"><svg width="60" height="60" viewBox="0 0 60 60">${circles}</svg><div class="legend">${legend}</div></div>`;
+    }
+    case "bars-h":
+      return `<div class="bars-h">${v.bars.map(b=>`
+        <div class="bar-h-row">
+          <span class="bar-h-label">${b.label}</span>
+          <span class="bar-h-track"><span class="bar-h-fill" style="width:${b.pct}%;background:${b.color}"></span></span>
+          <span class="bar-h-pct">${b.pct}%</span>
+        </div>`).join("")}</div>`;
+    case "bars-v": {
+      const max = Math.max(...v.bars);
+      return `<div class="bars-v">${v.bars.map(n=>`<div class="bar-v" style="height:${(n/max)*100}%"></div>`).join("")}</div>`;
+    }
+    case "stacked-h": {
+      const bars = v.segments.map(s=>`<div style="width:${s.pct}%;background:${s.color}"></div>`).join("");
+      const legend = v.segments.map(s=>`<span>${s.label} ${s.pct}%</span>`).join("");
+      return `<div class="stacked-h">${bars}</div><div class="stacked-legend">${legend}</div>`;
+    }
+    case "heatmap":
+      return `<div class="heatmap">${v.cells.map(o=>`<div class="heat-cell" style="opacity:${o}"></div>`).join("")}</div>`;
+    case "sparkline": {
+      const max = Math.max(...v.points), min = Math.min(...v.points);
+      const w = 280, h = 44, n = v.points.length;
+      const pts = v.points.map((p,i)=>{
+        const x = (i/(n-1))*w, y = h - ((p-min)/(max-min||1))*h;
+        return `${x},${y}`;
+      }).join(" ");
+      return `<svg class="sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <polyline points="${pts}" fill="none" stroke="#8b7cf6" stroke-width="2"/></svg>`;
+    }
+    case "pills":
+      return `<div class="pills">${v.items.map(i=>`<span class="pill">${i}</span>`).join("")}</div>`;
+    case "avatar":
+      return `<div class="avatar-chip"><div class="avatar-circle">${v.initials}</div><div>${v.name} · ${v.stat}</div></div>`;
+    default:
+      return "";
+  }
+}
+
+function cardEl(card){
+  const el = document.createElement("div");
+  el.className = "card"; el.dataset.id = card.id;
+  el.innerHTML = `
+    <div class="check"><svg viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+    <div class="card-title">${card.title}</div>
+    <div class="card-desc">${card.description||""}</div>
+    <div class="visual">${renderVisual(card.visual, card.accent)}</div>
+    <div class="card-foot">
+      <span class="badge ${card.badge.tone}"><span class="dot"></span>${card.badge.label}</span>
+      <span class="card-source">${card.source||""}</span>
+    </div>`;
+  el.addEventListener("click", () => toggle(card));
+  return el;
+}
+
+const STORAGE_KEY = "clickable-brief-selections";
+let selected = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
+const byId = {};
+
+function buildIndex(){
+  DATA.forEach(sec => sec.cards.forEach(c => byId[c.id] = c));
+}
+
+function toggle(card){
+  if (selected.has(card.id)) selected.delete(card.id); else selected.add(card.id);
+  sync();
+}
+
+function sync(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify([...selected]));
+  window.__briefSelections = [...selected].map(id => byId[id]);
+  document.querySelectorAll(".card").forEach(el => {
+    el.classList.toggle("selected", selected.has(el.dataset.id));
+  });
+  const total = Object.keys(byId).length;
+  document.getElementById("footer-count").textContent = `${selected.size} of ${total} marked`;
+}
+
+function render(){
+  buildIndex();
+  const root = document.getElementById("sections");
+  root.innerHTML = "";
+  DATA.forEach(sec => {
+    const s = document.createElement("div");
+    s.className = "section";
+    s.innerHTML = `
+      <div class="section-head">
+        <p class="section-title">${sec.title} <span class="why">${sec.subtitle||""}</span></p>
+        <p class="section-desc">${sec.description||""}</p>
+      </div>
+      <div class="grid"></div>`;
+    const grid = s.querySelector(".grid");
+    sec.cards.forEach(c => grid.appendChild(cardEl(c)));
+    root.appendChild(s);
+  });
+  sync();
+}
+
+document.getElementById("clear-btn").addEventListener("click", () => { selected.clear(); sync(); });
+
+document.getElementById("copy-btn").addEventListener("click", async () => {
+  const payload = JSON.stringify(window.__briefSelections, null, 2);
+  try {
+    await navigator.clipboard.writeText(payload);
+  } catch (e) {
+    const ta = document.createElement("textarea");
+    ta.value = payload; document.body.appendChild(ta); ta.select();
+    document.execCommand("copy"); document.body.removeChild(ta);
+  }
+  const btn = document.getElementById("copy-btn");
+  const prev = btn.textContent; btn.textContent = "Copied!";
+  setTimeout(() => btn.textContent = prev, 1200);
+});
+
+render();
+</script>
+</body>
+</html>

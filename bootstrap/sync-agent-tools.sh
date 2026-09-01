@@ -40,6 +40,10 @@ esac
 
 # ---- detection ----
 claude_installed_skill_sources()     { (cd "$HOME" && npx skills list --json 2>/dev/null) | jq -r '[.[]|select(.source!=null)|.source]|unique|.[]'; }
+# Skills with no npx-tracked source -- installed by dropping a SKILL.md
+# directly (e.g. agent-reach's own installer), not via `npx skills add`.
+# Tracked in the manifest by .name instead of .source.
+claude_installed_local_skill_names() { (cd "$HOME" && npx skills list --json 2>/dev/null) | jq -r '.[]|select(.source==null)|.name'; }
 claude_installed_plugin_ids()        { claude plugin list --json 2>/dev/null | jq -r '.[].id'; }
 claude_installed_marketplace_names() { claude plugin marketplace list --json 2>/dev/null | jq -r '.[].name'; }
 
@@ -56,7 +60,36 @@ sync_claude() {
   while IFS=$'\t' read -r source cmd; do
     [ -z "$source" ] && continue
     grep -qxF "$source" <<<"$have" || { log "installing Claude skill source: $source"; (cd "$HOME" && eval "$cmd") || log "FAILED: $cmd"; }
-  done < <(jq -r '.agents.claude.skills[] | [.source,.install] | @tsv' "$MANIFEST")
+  done < <(jq -r '.agents.claude.skills[] | select(.source!=null) | [.source,.install] | @tsv' "$MANIFEST")
+
+  have="$(claude_installed_local_skill_names)"
+  while IFS=$'\t' read -r name cmd; do
+    [ -z "$name" ] && continue
+    if ! grep -qxF "$name" <<<"$have"; then
+      if [ -z "$cmd" ]; then
+        log "local Claude skill '$name' missing and has no install command (hand-authored, no reproducible source) -- skipping, add it by hand if needed"
+      else
+        log "installing local Claude skill: $name"
+        eval "$cmd" || log "FAILED: $cmd"
+      fi
+    fi
+  done < <(jq -r '.agents.claude.skills[] | select(.name!=null) | [.name,(.install//"")] | @tsv' "$MANIFEST")
+
+  # Bundle entries: one install command produces several named skills at once
+  # (e.g. a course installer). Run the command once if ANY name is missing.
+  have="$(claude_installed_local_skill_names)"
+  while IFS=$'\t' read -r names cmd; do
+    [ -z "$names" ] && continue
+    missing=0
+    IFS=',' read -ra name_arr <<<"$names"
+    for n in "${name_arr[@]}"; do
+      grep -qxF "$n" <<<"$have" || missing=1
+    done
+    if [ "$missing" = 1 ]; then
+      log "installing Claude skill bundle: $names"
+      eval "$cmd" || log "FAILED: $cmd"
+    fi
+  done < <(jq -r '.agents.claude.skills[] | select(.names!=null) | [(.names|join(",")),.install] | @tsv' "$MANIFEST")
 
   have="$(claude_installed_marketplace_names)"
   while IFS=$'\t' read -r name source repo path; do
@@ -98,10 +131,12 @@ sync_hermes() {
 
 # ---- drift: what's installed that the manifest doesn't know about ----
 drift_claude() {
-  local es ep
-  es="$(comm -23 <(claude_installed_skill_sources|LC_ALL=C sort -u) <(jq -r '.agents.claude.skills[].source' "$MANIFEST"|LC_ALL=C sort -u))"
+  local es el ep
+  es="$(comm -23 <(claude_installed_skill_sources|LC_ALL=C sort -u) <(jq -r '.agents.claude.skills[]|select(.source!=null)|.source' "$MANIFEST"|LC_ALL=C sort -u))"
+  el="$(comm -23 <(claude_installed_local_skill_names|LC_ALL=C sort -u) <(jq -r '.agents.claude.skills[] | ((.name // empty), (.names[]? // empty))' "$MANIFEST"|LC_ALL=C sort -u))"
   ep="$(comm -23 <(claude_installed_plugin_ids|LC_ALL=C sort -u) <(jq -r '.agents.claude.plugins[].id' "$MANIFEST"|LC_ALL=C sort -u))"
-  jq -n --arg s "$es" --arg p "$ep" '{skill_sources:($s|split("\n")|map(select(length>0))), plugins:($p|split("\n")|map(select(length>0)))}'
+  jq -n --arg s "$es" --arg l "$el" --arg p "$ep" \
+    '{skill_sources:($s|split("\n")|map(select(length>0))), local_skills:($l|split("\n")|map(select(length>0))), plugins:($p|split("\n")|map(select(length>0)))}'
 }
 drift_hermes() {
   local et ep
@@ -110,7 +145,7 @@ drift_hermes() {
   jq -n --arg t "$et" --arg p "$ep" '{skill_taps:($t|split("\n")|map(select(length>0))), plugins:($p|split("\n")|map(select(length>0)))}'
 }
 
-drift_empty() { jq -e '((.skill_sources//.skill_taps//[])+.plugins|length)==0' <<<"$1" >/dev/null; }
+drift_empty() { jq -e '((.skill_sources//.skill_taps//[])+(.local_skills//[])+.plugins|length)==0' <<<"$1" >/dev/null; }
 
 # ---- modes ----
 case "$MODE" in
