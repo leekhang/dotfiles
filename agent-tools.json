@@ -55,10 +55,10 @@
         "scroll-animations"
       ],
       "install": {
-        "claude": "npx @animationsdev/install --token=\"$(chezmoi data --format=json | jq -r .animationsdev_token)\"",
-        "hermes": "npx @animationsdev/install --token=\"$(chezmoi data --format=json | jq -r .animationsdev_token)\""
+        "claude": "npx @animationsdev/install --token=\"$(get_secret animationsdev_token)\"",
+        "hermes": "npx @animationsdev/install --token=\"$(get_secret animationsdev_token)\""
       },
-      "note": "The 'Animations on the Web' course skill set (animations.dev). One installer call produces all of these. Requires animationsdev_token in ~/.config/chezmoi/chezmoi.toml's [data] section (a personal license token -- never hardcode it here, this file is public on GitHub)."
+      "note": "The 'Animations on the Web' course skill set (animations.dev). One installer call produces all of these. Requires animationsdev_token in ~/.config/chezmoi/chezmoi.toml's [data] section on THIS machine (a personal license token -- never hardcode it here, this file is public on GitHub). get_secret() reads it whether or not the chezmoi binary itself is installed (falls back to parsing chezmoi.toml directly), but the value still has to actually be present in that file on each machine -- it's never synced by dotfiles itself."
     },
     {
       "name": "herdr",
@@ -83,6 +83,29 @@
         "hermes": "mkdir -p \"$HOME/.hermes/skills/yuanbao\" && cp -R \"$REPO_DIR/local-skills/yuanbao/.\" \"$HOME/.hermes/skills/yuanbao/\""
       },
       "note": "Yuanbao groups skill. local-skills/yuanbao/ is the source of truth."
+    },
+    {
+      "names": [
+        "dart-add-unit-test",
+        "dart-build-cli-app",
+        "dart-collect-coverage",
+        "dart-fix-runtime-errors",
+        "dart-generate-test-mocks",
+        "dart-migrate-to-checks-package",
+        "dart-resolve-package-conflicts",
+        "dart-run-static-analysis",
+        "dart-setup-ffi-assets",
+        "dart-use-doc-examples",
+        "dart-use-ffigen",
+        "dart-use-pattern-matching",
+        "dart-use-primary-constructors",
+        "dart-write-documentation"
+      ],
+      "install": {
+        "claude": "npx skills add dart-lang/skills --skill '*' --agent claude-code -g -y",
+        "hermes": "hermes skills tap add dart-lang/skills"
+      },
+      "note": "Official Dart team skill set. Installed via npx skills add but shows source:null in `npx skills list --json` on this machine (same as herdr above -- --agent claude-code copies files rather than symlinking, which drops source attribution) -- tracked by name to match actual detected state. Upstream README suggests --agent universal instead (installs to the shared .agents/skills dir, source-tracked there); switch to that + a plain .source entry if this ever needs to target a non-Claude agent that reads .agents/skills directly. dart-setup-ffi-assets flagged Med/Critical risk in the installer's own security scan (Gen Risk column) -- every other skill in the set came back Safe; review before relying on it."
     }
   ],
   "agents": {
@@ -101,6 +124,16 @@
           "path": "/Users/khang/repos/tutor",
           "portable": false,
           "note": "Local dev marketplace. Only reproducible on a machine that has the tutor repo cloned at exactly this path. sync will not auto-add this on a fresh machine."
+        },
+        {
+          "name": "ponytail",
+          "source": "github",
+          "repo": "DietrichGebert/ponytail"
+        },
+        {
+          "name": "dart-flutter",
+          "source": "github",
+          "repo": "flutter/agent-plugins"
         }
       ],
       "plugins": [
@@ -110,6 +143,14 @@
           "id": "tutor@tutor-marketplace",
           "portable": false,
           "note": "Depends on the non-portable tutor-marketplace above."
+        },
+        {
+          "id": "ponytail@ponytail",
+          "note": "Nudges the agent toward minimal, non-over-engineered diffs (reuse/stdlib/native before writing new code). Also installable for other agents per its own README, neither of which this manifest tracks (only claude/hermes/pi) -- reference only, not auto-synced: Codex (`codex plugin marketplace add DietrichGebert/ponytail` then `codex plugin add ponytail@ponytail`); GitHub Copilot CLI (`copilot plugin marketplace add DietrichGebert/ponytail` then `copilot plugin install ponytail@ponytail`). No Hermes install exists -- ponytail's README doesn't cover it."
+        },
+        {
+          "id": "dart-flutter@dart-flutter",
+          "note": "Official Flutter/Dart team plugin -- bundles Flutter/Dart skills (widget tests, layout-error fixes, JSON serialization, go_router setup, etc.) plus the Dart MCP server. Full per-agent breakdown: https://docs.flutter.dev/ai/get-started (also covers Cursor, Codex, Antigravity, GitHub Copilot, and generic MCP clients -- none tracked in this manifest). No native Hermes plugin equivalent (Hermes has its own separate plugin format), but the skills alone (no MCP bundling) could be pulled into Hermes via `hermes skills tap add flutter/agent-plugins` if ever wanted -- not added as an auto-synced hermes install here since that path is unverified."
         }
       ]
     },

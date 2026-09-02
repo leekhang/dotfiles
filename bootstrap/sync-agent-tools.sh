@@ -37,6 +37,25 @@ log() { echo "[sync-agent-tools] $*" >&2; }
 command -v jq >/dev/null 2>&1 || { log "jq is required (brew install jq)"; exit 1; }
 [ -f "$MANIFEST" ] || { log "manifest not found: $MANIFEST"; exit 1; }
 
+# Fetch a secret from chezmoi.toml's [data] section without requiring the
+# chezmoi binary itself -- machines like the ZimaBoard use a plain git clone
+# of dotfiles, no chezmoi install, so `chezmoi data` silently returns nothing
+# there and any install command piping through it gets an empty secret.
+# Manifest install commands should call this instead of `chezmoi data`
+# directly. Never echoes the value anywhere but its own stdout.
+get_secret() {
+  local key="$1" val=""
+  if command -v chezmoi >/dev/null 2>&1; then
+    val="$(chezmoi data --format=json 2>/dev/null | jq -r --arg k "$key" '.[$k] // empty' 2>/dev/null)"
+  fi
+  if [ -z "$val" ] && [ -f "$HOME/.config/chezmoi/chezmoi.toml" ]; then
+    val="$(awk -F'=' -v k="^[[:space:]]*$key[[:space:]]*\$" '$1 ~ k {
+      v=$2; gsub(/^[ \t]+|[ \t]+$/, "", v); gsub(/^"|"$/, "", v); print v; exit
+    }' "$HOME/.config/chezmoi/chezmoi.toml")"
+  fi
+  echo "$val"
+}
+
 case "$AGENT" in
   claude|hermes) ;;
   pi) log "agent 'pi' is a placeholder -- no install mechanism yet"; exit 0 ;;
