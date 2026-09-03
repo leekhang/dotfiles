@@ -1,0 +1,248 @@
+diff --git a/agent/display.py b/agent/display.py
+index 7a5dfc47a4..4deb214f2e 100644
+--- a/agent/display.py
++++ b/agent/display.py
+@@ -1397,6 +1397,18 @@ def _get_cute_tool_message(
+     is_failure, failure_suffix = _detect_tool_failure(tool_name, result)
+     skin_prefix = get_skin_tool_prefix()
+ 
++    # Plain skin suppresses emojis via tool_emojis=" " — hard-coded emojis
++    # in this function bypass get_tool_emoji(), so resolve them here.
++    _skin = _get_skin()
++    _is_plain = bool(_skin and _skin.name == "plain")
++    def _maybe_emoji(name: str, fallback: str) -> str:
++        if _is_plain:
++            ov = _skin.tool_emojis.get(name) if _skin and _skin.tool_emojis else None
++            if ov is not None:
++                return "" if ov.strip() == "" else ov
++            return ""
++        return get_tool_emoji(name, default=fallback)
++
+     def _trunc(s, n=40):
+         s = str(s)
+         if _tool_preview_max_len == 0:
+@@ -1415,45 +1427,73 @@ def _get_cute_tool_message(
+         """Apply skin tool prefix and failure suffix."""
+         if skin_prefix != "┊":
+             line = line.replace("┊", skin_prefix, 1)
++        if _is_plain:
++            import re as _re2, shutil as _sh
++            line = _re2.sub(r'[\U0001F300-\U0001FAFF\u2600-\u27BF]+\s*', '', line)
++            line = line.replace('┊  ', '┊ ')
++            # collapse verb padding: ' $         ' -> ' $ ', ' grep      ' -> ' grep '
++            line = _re2.sub(r' (\$|grep|find|proc|read|write|patch|search|fetch|navigate|snapshot|click|type|scroll|back|press|images|vision|plan|recall|memory|skill|skills|create|speak|send|cron|exec|browser|delegate)(\s{2,})', r' \1 ', line)
++            # window-aware hanging indent: wrap long lines at terminal width
++            try:
++                cols = shutil.get_terminal_size().columns
++                if len(line) > cols and cols >= 60:
++                    # split off trailing duration '  0.3s' if present
++                    m = _re2.search(r'(\s+\d+\.\d+s)$', line)
++                    dur_suf = m.group(1) if m else ''
++                    core = line[:len(line)-len(dur_suf)] if dur_suf else line
++                    prefix = '┊ ' if core.startswith('┊ ') else ''
++                    body = core[len(prefix):] if prefix else core
++                    avail = max(40, cols - len(prefix) - 4)
++                    import textwrap as _tw
++                    wrapped = _tw.fill(body, width=avail, initial_indent='', subsequent_indent='  ', break_long_words=False, break_on_hyphens=False)
++                    parts = wrapped.split('\n')
++                    line = prefix + parts[0]
++                    for cont in parts[1:]:
++                        line += '\n' + prefix + cont
++                    if dur_suf:
++                        # keep duration on last line
++                        line = line.rstrip() + dur_suf
++            except Exception:
++                pass
+         if not is_failure:
+             return line
+         return f"{line}{failure_suffix}"
+ 
+     if tool_name == "web_search":
+-        return _wrap(f"┊ 🔍 search    {_trunc(args.get('query', ''), 42)}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('web_search','🔍')} search    {_trunc(args.get('query', ''), 42)}  {dur}")
+     if tool_name == "web_extract":
+         urls = args.get("urls", [])
+         if urls:
+             url = _display_url(urls[0] if isinstance(urls, list) else urls)
+             if not url:
+-                return _wrap(f"┊ 📄 fetch     pages  {dur}")
++                return _wrap(f"┊ {_maybe_emoji('web_extract','📄')} fetch     pages  {dur}")
+             domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+             extra = f" +{len(urls)-1}" if isinstance(urls, list) and len(urls) > 1 else ""
+-            return _wrap(f"┊ 📄 fetch     {_trunc(domain, 35)}{extra}  {dur}")
+-        return _wrap(f"┊ 📄 fetch     pages  {dur}")
++            return _wrap(f"┊ {_maybe_emoji('web_extract','📄')} fetch     {_trunc(domain, 35)}{extra}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('web_extract','📄')} fetch     pages  {dur}")
+     if tool_name == "terminal":
+-        return _wrap(f"┊ 💻 $         {_trunc(build_tool_preview(tool_name, args) or args.get('command', ''), 42)}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('terminal','💻')} $         {_trunc(build_tool_preview(tool_name, args) or args.get('command', ''), 42)}  {dur}")
+     if tool_name == "process_manage":
+         action = args.get("action", "?")
+         sid = args.get("session_id", "")[:12]
+         labels = {"list": "ls processes", "poll": f"poll {sid}", "log": f"log {sid}",
+                   "wait": f"wait {sid}", "kill": f"kill {sid}", "write": f"write {sid}", "submit": f"submit {sid}"}
+-        return _wrap(f"┊ ⚙️  proc      {labels.get(action, f'{action} {sid}')}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('process','⚙️')}  proc      {labels.get(action, f'{action} {sid}')}  {dur}")
+     if tool_name == "read_file":
+-        return _wrap(f"┊ 📖 read      {_trunc(build_tool_preview(tool_name, args) or args.get('path', ''), 42)}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('read_file','📖')} read      {_trunc(build_tool_preview(tool_name, args) or args.get('path', ''), 42)}  {dur}")
+     if tool_name == "write_file":
+-        return _wrap(f"┊ ✍️  write     {_path(args.get('path', ''))}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('write_file','✍️')}  write     {_path(args.get('path', ''))}  {dur}")
+     if tool_name == "patch":
+-        return _wrap(f"┊ 🔧 patch     {_path(args.get('path', ''))}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('patch','🔧')} patch     {_path(args.get('path', ''))}  {dur}")
+     if tool_name == "search_files":
+         pattern = _trunc(args.get("pattern", ""), 35)
+         target = args.get("target", "content")
+         verb = "find" if target == "files" else "grep"
+-        return _wrap(f"┊ 🔎 {verb:9} {pattern}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('search_files','🔎')} {verb:9} {pattern}  {dur}")
+     if tool_name == "browser_navigate":
+         url = args.get("url", "")
+         domain = url.replace("https://", "").replace("http://", "").split("/")[0]
+-        return _wrap(f"┊ 🌐 navigate  {_trunc(domain, 35)}  {dur}")
++        return _wrap(f"┊ {_maybe_emoji('browser_navigate','🌐')} navigate  {_trunc(domain, 35)}  {dur}")
+     if tool_name == "browser_snapshot":
+         mode = "full" if args.get("full") else "compact"
+         return _wrap(f"┊ 📸 snapshot  {mode}  {dur}")
+@@ -1568,7 +1608,7 @@ def _get_cute_tool_message(
+         return _wrap(f"┊ 🔀 delegate  {_trunc(args.get('goal', ''), 35)}  {dur}")
+ 
+     preview = build_tool_preview(tool_name, args) or ""
+-    return _wrap(f"┊ ⚡ {tool_name[:9]:9} {_trunc(preview, 35)}  {dur}")
++    return _wrap(f"┊ {_maybe_emoji(tool_name,'⚡')} {tool_name[:9]:9} {_trunc(preview, 35)}  {dur}")
+ 
+ 
+ def get_cute_tool_message(
+diff --git a/cli.py b/cli.py
+index 19536ffe8d..4ecdc2c87c 100644
+--- a/cli.py
++++ b/cli.py
+@@ -8274,13 +8274,32 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
+         return paste_ref_re.sub(_expand_ref, text)
+ 
+     def _print_user_message_preview(self, user_input: str) -> None:
+-        """Render a user message using the normal chat scrollback style."""
+-        ChatConsole().print(f"[{_accent_hex()}]{'─' * 40}[/]")
++        """Render a user message using the status-bar background (no outline/bullet)."""
++        from hermes_cli.skin_engine import get_active_skin
++        try:
++            _skin2 = get_active_skin()
++            _bg = _skin2.get_color("status_bar_bg", "#1e293b") if _skin2 else "#1e293b"
++            _fg = _skin2.get_color("status_bar_text", "#c9d1d9") if _skin2 else "#c9d1d9"
++        except Exception:
++            _bg, _fg = "#1e293b", "#c9d1d9"
+         text = str(user_input or "")
+         if "\n" in text:
+-            ChatConsole().print(self._format_submitted_user_message_preview(text))
++            raw = self._format_submitted_user_message_preview(text)
++            import re as _re2
++            cleaned = _re2.sub(r"\[bold [^\]]+\]●\[/\] ?", "", raw)
++            for line in cleaned.split("\n"):
++                ChatConsole().print(f"[on {_bg} {_fg}] {line.rstrip()} [/]")
+         else:
+-            ChatConsole().print(f"[bold {_accent_hex()}]●[/] [bold]{_escape(text)}[/]")
++            # window-aware hanging indent — like claude code, recalc on every print
++            import shutil as _sh2, textwrap as _tw2
++            try:
++                cols = _sh2.get_terminal_size().columns
++                avail = max(40, cols - 6)
++                wrapped = _tw2.fill(text, width=avail, initial_indent='', subsequent_indent='  ', break_long_words=False, break_on_hyphens=False)
++                for i, wline in enumerate(wrapped.split('\n')):
++                    ChatConsole().print(f"[on {_bg} {_fg}] {wline} [/]")
++            except Exception:
++                ChatConsole().print(f"[on {_bg} {_fg}] {text} [/]")
+ 
+     def _stream_reasoning_delta(self, text: str) -> None:
+         """Stream reasoning/thinking tokens into a dim box above the response.
+@@ -17131,7 +17150,7 @@ class HermesCLI(CLIAgentSetupMixin, CLICommandsMixin, CLIBillingMixin):
+             with persist_lock:
+                 _stage_user_message()
+ 
+-        ChatConsole().print(f"[{_accent_hex()}]{'─' * 40}[/]")
++        # highlight, not outline — no ─ rule above prompts
+         print(flush=True)
+         
+         try:
+diff --git a/hermes_cli/banner.py b/hermes_cli/banner.py
+index d69faf1c92..036cf61da3 100644
+--- a/hermes_cli/banner.py
++++ b/hermes_cli/banner.py
+@@ -1017,6 +1017,8 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
+     dim = _skin_color("banner_dim", "#B8860B")
+     text = _skin_color("banner_text", "#FFF8DC")
+     session_color = _skin_color("session_border", "#8B8682")
++    lazy_color = _skin_color("ui_warn", "#ffa726")
++    error_color = _skin_color("ui_error", "#ef5350")
+ 
+     # Use skin's custom caduceus art if provided
+     try:
+@@ -1100,9 +1102,9 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
+         colored_names = []
+         for name in sorted(tool_names):
+             if name in disabled_tools:
+-                colored_names.append(f"[red]{name}[/]")
++                colored_names.append(f"[{error_color}]{name}[/]")
+             elif name in lazy_tools:
+-                colored_names.append(f"[yellow]{name}[/]")
++                colored_names.append(f"[{lazy_color}]{name}[/]")
+             else:
+                 colored_names.append(f"[{text}]{name}[/]")
+ 
+@@ -1121,9 +1123,9 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
+                 if name == "...":
+                     colored_names.append("[dim]...[/]")
+                 elif name in disabled_tools:
+-                    colored_names.append(f"[red]{name}[/]")
++                    colored_names.append(f"[{error_color}]{name}[/]")
+                 elif name in lazy_tools:
+-                    colored_names.append(f"[yellow]{name}[/]")
++                    colored_names.append(f"[{lazy_color}]{name}[/]")
+                 else:
+                     colored_names.append(f"[{text}]{name}[/]")
+             tools_str = ", ".join(colored_names)
+@@ -1176,7 +1178,7 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
+             elif status == "connecting":
+                 right_lines.append(
+                     f"[dim {dim}]{srv['name']}[/] [dim]({srv['transport']})[/] "
+-                    f"[yellow]— connecting[/]"
++                    f"[{lazy_color}]— connecting[/]"
+                 )
+             elif status == "configured":
+                 right_lines.append(
+@@ -1185,8 +1187,8 @@ def build_welcome_banner(console: "Console", model: str, cwd: str,
+                 )
+             else:
+                 right_lines.append(
+-                    f"[red]{srv['name']}[/] [dim]({srv['transport']})[/] "
+-                    f"[red]— failed[/]"
++                    f"[{error_color}]{srv['name']}[/] [dim]({srv['transport']})[/] "
++                    f"[{error_color}]— failed[/]"
+                 )
+ 
+     right_lines.append("")
+diff --git a/hermes_cli/skin_engine.py b/hermes_cli/skin_engine.py
+index a2a093b7dc..2d833c4aa7 100644
+--- a/hermes_cli/skin_engine.py
++++ b/hermes_cli/skin_engine.py
+@@ -1022,6 +1022,11 @@ def get_prompt_toolkit_style_overrides() -> Dict[str, str]:
+     menu_meta_bg = skin.get_color("completion_menu_meta_bg", menu_bg)
+     menu_meta_current_bg = skin.get_color("completion_menu_meta_current_bg", menu_current_bg)
+ 
++    # Session-title badge is normally an inverted pill (bg: gold). For
++    # monochrome/minimal skins that set every status color to gray it must
++    # not stay hardcoded bg:#FFD700 — derive from the skin's surfaces
++    # so plain/mono render an inverted-gray pill instead (bg: selection).
++    pill_bg = skin.get_color("selection_bg", menu_current_bg)
+     return {
+         # Typed input always uses terminal default fg/bg so it's
+         # readable in both light and dark Terminal.app modes.  The
+@@ -1039,6 +1044,7 @@ def get_prompt_toolkit_style_overrides() -> Dict[str, str]:
+         "status-bar-warn": f"bg:{status_bg} {status_warn} bold",
+         "status-bar-bad": f"bg:{status_bg} {status_bad} bold",
+         "status-bar-critical": f"bg:{status_bg} {status_critical} bold",
++        "status-bar-session-title": f"bg:{pill_bg} {status_text} bold",
+         "input-rule": input_rule,
+         "image-badge": f"{label} bold",
+         "completion-menu": f"bg:{menu_bg} {text}",

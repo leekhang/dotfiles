@@ -1,0 +1,32 @@
+#!/bin/bash
+# chezmoi run_onchange: re-apply hermes display patches after hermes pull
+# file: run_onchange_after_hermes-plain-patches.sh.tmpl
+# Trigger: hash of patches changes -> re-apply
+# {{- $patch := include "private_dot_hermes_patches/plain-minimal.patch" | sha256sum }}
+# plain-{{ $patch }}
+set -e
+PATCH="$HOME/.hermes_patches/plain-minimal.patch"
+SRC="{{ .chezmoi.sourceDir }}/private_dot_hermes_patches/plain-minimal.patch"
+HERMES_HOME_DIR="${HERMES_HOME:-$HOME/.hermes}/hermes-agent"
+
+if [ ! -f "$SRC" ]; then exit 0; fi
+if [ ! -d "$HERMES_HOME_DIR/.git" ]; then exit 0; fi
+
+mkdir -p "$(dirname "$PATCH")"
+cp -f "$SRC" "$PATCH"
+
+# Try to apply; if already applied or conflicts, try 3-way, else warn
+if git -C "$HERMES_HOME_DIR" apply --check "$PATCH" >/dev/null 2>&1; then
+  git -C "$HERMES_HOME_DIR" apply "$PATCH"
+elif git -C "$HERMES_HOME_DIR" apply --check --3way "$PATCH" >/dev/null 2>&1; then
+  git -C "$HERMES_HOME_DIR" apply --3way "$PATCH" || true
+else
+  # Already applied (no diff) or patch needs rebase — try reverse check
+  if git -C "$HERMES_HOME_DIR" apply --reverse --check "$PATCH" >/dev/null 2>&1; then
+    # already applied, nothing to do
+    exit 0
+  fi
+  echo "[chezmoi] hermes plain patch: apply --check failed, patch may need rebase after upstream change" >&2
+  exit 0
+fi
+echo "[chezmoi] hermes plain display patch applied" >&2
