@@ -8,6 +8,7 @@ return {
       "lua", "javascript", "typescript", "tsx", "jsdoc",
       "html", "css", "markdown", "markdown_inline",
       "python", "json", "bash", "regex", "vim", "vimdoc", "query",
+      "sql",
     })
 
     vim.api.nvim_create_autocmd("FileType", {

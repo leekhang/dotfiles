@@ -23,6 +23,7 @@ return {
       markdown = { "prettier" },
       json = { "prettier" },
       python = { "ruff_format" },
+      sql = { "sql_formatter" },
     },
     format_on_save = { timeout_ms = 1000, lsp_fallback = true },
   },

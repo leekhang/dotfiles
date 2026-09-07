@@ -1,6 +1,9 @@
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(ev)
     vim.keymap.set("n", "gd", vim.lsp.buf.definition, { buffer = ev.buf })
+    vim.keymap.set("n", "<leader>e", vim.diagnostic.open_float, { buffer = ev.buf })
+    vim.keymap.set("n", "<leader>rn", vim.lsp.buf.rename, { buffer = ev.buf })
+    vim.keymap.set("n", "<leader>ca", vim.lsp.buf.code_action, { buffer = ev.buf })
   end,
 })
 
@@ -27,7 +30,13 @@ return {
     opts = {
       ensure_installed = {
         "lua_ls", "ts_ls", "eslint", "html", "cssls", "marksman", "basedpyright", "ruff",
+        "sqls",
       },
+      -- sqls (Go binary via `go install`) instead of sqlls (npm): sqlls pulls in sqlite3,
+      -- a native addon that needs node-gyp, which needs Python's distutils. This machine's
+      -- Python is 3.14 everywhere (venv and system), and distutils was removed in 3.12 with
+      -- no older Python installed to fall back to, so sqlls's install fails at that C-compile
+      -- step. sqls sidesteps it entirely by never touching node-gyp.
       -- gdscript isn't a Mason package (it's Godot's own built-in LSP server, reached over
       -- TCP), so it's enabled directly below rather than listed here.
       -- automatic_enable defaults to true: calls vim.lsp.enable() for every Mason-installed package
@@ -52,6 +61,6 @@ return {
     "WhoIsSethDaniel/mason-tool-installer.nvim",
     dependencies = { "mason-org/mason.nvim" },
     event = { "BufReadPre", "BufNewFile" },
-    opts = { ensure_installed = { "stylua", "prettier" } }, -- ruff already installed via mason-lspconfig above
+    opts = { ensure_installed = { "stylua", "prettier", "sql-formatter" } }, -- ruff already installed via mason-lspconfig above
   },
 }
