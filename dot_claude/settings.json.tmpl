@@ -1,7 +1,7 @@
 {
   "statusLine": {
     "type": "command",
-    "command": "bash /Users/khang/.claude/statusline-command.sh"
+    "command": "bash {{ .chezmoi.homeDir }}/.claude/statusline-command.sh"
   },
   "hooks": {
     "SessionStart": [
@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash '/Users/khang/.claude/hooks/herdr-agent-state.sh' session",
+            "command": "bash '{{ .chezmoi.homeDir }}/.claude/hooks/herdr-agent-state.sh' session",
             "timeout": 10
           }
         ]
@@ -59,6 +59,7 @@
     }
   },
   "tui": "fullscreen",
+  "theme": "dark",
   "env": {
     "SKILLSMP_API_KEY": "{{ .skillsmp_api_key }}"
   }

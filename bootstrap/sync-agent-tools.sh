@@ -10,9 +10,10 @@
 #     drift          agent -> dotfiles (read-only). Prints JSON of anything
 #                     installed locally that ISN'T in the manifest. Prints
 #                     nothing if there's no drift.
-#     session-start  sync, then drift. For SessionStart hooks. Emits
-#                     Claude-Code hookSpecificOutput JSON (agent=claude) or
-#                     plain text (agent=hermes), only if drift was found.
+#     session-start  git pull the dotfiles repo (fast-forward only, best
+#                     effort), then sync, then drift. For SessionStart hooks.
+#                     Emits Claude-Code hookSpecificOutput JSON (agent=claude)
+#                     or plain text (agent=hermes), only if drift was found.
 #     post-tool-use  Reads a Claude Code PostToolUse hook payload on stdin,
 #                     checks tool_input.command against known install-command
 #                     patterns for BOTH agents, and if matched, re-runs drift
@@ -73,8 +74,11 @@ esac
 claude_installed_skill_sources()     { (cd "$HOME" && npx skills list --json 2>/dev/null) | jq -r '[.[]|select(.source!=null)|.source]|unique|.[]'; }
 # Skills with no npx-tracked source -- installed by dropping a SKILL.md
 # directly (e.g. agent-reach's own installer), not via `npx skills add`.
-# Tracked in the manifest by .name instead of .source.
-claude_installed_local_skill_names() { (cd "$HOME" && npx skills list --json 2>/dev/null) | jq -r '.[]|select(.source==null)|.name'; }
+# Tracked in the manifest by .name instead of .source. Filtered to skills
+# `npx skills list` actually scopes to Claude Code -- without this, a
+# Hermes-only local skill (tracked correctly under .agents.hermes.skills)
+# shows up as permanent false "claude drift" every session.
+claude_installed_local_skill_names() { (cd "$HOME" && npx skills list --json 2>/dev/null) | jq -r '.[]|select(.source==null and ((.agents // [])|index("Claude Code")))|.name'; }
 claude_installed_plugin_ids()        { claude plugin list --json 2>/dev/null | jq -r '.[].id'; }
 claude_installed_marketplace_names() { claude plugin marketplace list --json 2>/dev/null | jq -r '.[].name'; }
 
@@ -251,6 +255,19 @@ drift_hermes() {
 
 drift_empty() { jq -e '((.skill_sources//.skill_taps//[])+(.local_skills//[])+.plugins|length)==0' <<<"$1" >/dev/null; }
 
+# ---- keep the local checkout current before reconciling against it ----
+# Fast-forward only: a hook that runs on every session start should never
+# create a merge commit or clobber local edits. If the checkout has diverged
+# (local commits, conflicts, detached HEAD), skip silently and reconcile
+# against whatever's already there rather than blocking session start.
+pull_dotfiles() {
+  git -C "$REPO_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  local out
+  if ! out="$(git -C "$REPO_DIR" pull --ff-only --quiet 2>&1)"; then
+    log "dotfiles git pull failed or not fast-forward -- continuing with local checkout: $out"
+  fi
+}
+
 # ---- modes ----
 case "$MODE" in
   sync)
@@ -262,6 +279,7 @@ case "$MODE" in
     exit 0
     ;;
   session-start)
+    pull_dotfiles
     if [ "$AGENT" = claude ]; then sync_claude; else sync_hermes; fi
     if [ "$AGENT" = claude ]; then result="$(drift_claude)"; else result="$(drift_hermes)"; fi
     if ! drift_empty "$result"; then

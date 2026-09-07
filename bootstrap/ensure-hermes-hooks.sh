@@ -29,7 +29,7 @@ hooks:
   post_tool_call:
     - matcher: "terminal"
       command: "$SCRIPT_PATH hermes post-tool-use"
-      timeout: 10
+      timeout: 20
       fail_closed: false
 YAML
   echo "ensure-hermes-hooks: added hooks: block to $CONFIG"

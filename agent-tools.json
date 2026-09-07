@@ -61,6 +61,14 @@
       "note": "The 'Animations on the Web' course skill set (animations.dev). One installer call produces all of these. Requires animationsdev_token in ~/.config/chezmoi/chezmoi.toml's [data] section on THIS machine (a personal license token -- never hardcode it here, this file is public on GitHub). get_secret() reads it whether or not the chezmoi binary itself is installed (falls back to parsing chezmoi.toml directly), but the value still has to actually be present in that file on each machine -- it's never synced by dotfiles itself."
     },
     {
+      "name": "archify",
+      "install": {
+        "claude": "npx skills add tt-a1i/archify",
+        "hermes": "hermes skills tap add tt-a1i/archify"
+      },
+      "note": "Diagram-rendering skill (architecture/workflow/sequence/dataflow/lifecycle HTML+SVG). Installed via npx skills add but shows source:null in `npx skills list --json` (same as herdr/dart-lang below) -- tracked by name to match actual detected state. Source: https://github.com/tt-a1i/archify."
+    },
+    {
       "name": "herdr",
       "install": {
         "claude": "npx skills add herdrdev/herdr --skill herdr -g",
@@ -156,7 +164,36 @@
     },
     "hermes": {
       "_comment": "Hermes state here is the real ZimaBoard instance (ssh zima), not this Mac's local ~/.hermes shell/client. Skills are shared top-level; agents.hermes.skills is for Hermes-only extras.",
-      "skills": [],
+      "skills": [
+        {
+          "name": "dotfiles-sync",
+          "install": {
+            "hermes": "mkdir -p \"$HOME/.hermes/skills/dotfiles-sync\" && cp -R \"$REPO_DIR/local-skills/dotfiles-sync/.\" \"$HOME/.hermes/skills/dotfiles-sync/\""
+          },
+          "note": "Hand-authored: documents the exact hooks/drift/pull/apply workflow this manifest and sync-agent-tools.sh implement. local-skills/dotfiles-sync/ is the source of truth. Its references/hooks-and-drift.md is the 2026-09-03 diagnosis that led to the git-pull step in sync-agent-tools.sh's session-start mode."
+        },
+        {
+          "name": "hermes-theming",
+          "install": {
+            "hermes": "mkdir -p \"$HOME/.hermes/skills/hermes-theming\" && cp -R \"$REPO_DIR/local-skills/hermes-theming/.\" \"$HOME/.hermes/skills/hermes-theming/\""
+          },
+          "note": "Hand-authored. local-skills/hermes-theming/ is the source of truth."
+        },
+        {
+          "name": "live-mirror",
+          "install": {
+            "hermes": "mkdir -p \"$HOME/.hermes/skills/live-mirror\" && cp -R \"$REPO_DIR/local-skills/live-mirror/.\" \"$HOME/.hermes/skills/live-mirror/\""
+          },
+          "note": "Hand-authored. local-skills/live-mirror/ is the source of truth."
+        },
+        {
+          "name": "periodic-review-briefs",
+          "install": {
+            "hermes": "mkdir -p \"$HOME/.hermes/skills/periodic-review-briefs\" && cp -R \"$REPO_DIR/local-skills/periodic-review-briefs/.\" \"$HOME/.hermes/skills/periodic-review-briefs/\""
+          },
+          "note": "Hand-authored. local-skills/periodic-review-briefs/ is the source of truth."
+        }
+      ],
       "plugins": []
     },
     "pi": {
