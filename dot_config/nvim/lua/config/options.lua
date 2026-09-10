@@ -33,10 +33,25 @@ vim.opt.number = true
 -- Undo options
 vim.opt.undofile = true
 
--- Sync OS and Neovim clipboard after Neovim has been booted up
-vim.schedule(function()
-  vim.o.clipboard = 'unnamed'
-end)
+-- Sync OS and Neovim clipboard over OSC 52. This box is a headless VM
+-- reached over SSH with no X11/Wayland session, so the usual
+-- 'unnamed'/'unnamedplus' approach (shelling out to xclip/xsel/wl-copy)
+-- has no display server to talk to and silently does nothing. OSC 52
+-- instead sends/reads clipboard data as a terminal escape sequence, so it
+-- travels back through the SSH connection itself to the terminal on the
+-- Mac (Ghostty), which supports it out of the box.
+vim.g.clipboard = {
+  name = "OSC 52",
+  copy = {
+    ["+"] = require("vim.ui.clipboard.osc52").copy("+"),
+    ["*"] = require("vim.ui.clipboard.osc52").copy("*"),
+  },
+  paste = {
+    ["+"] = require("vim.ui.clipboard.osc52").paste("+"),
+    ["*"] = require("vim.ui.clipboard.osc52").paste("*"),
+  },
+}
+vim.opt.clipboard = "unnamedplus"
 
 -- Misc. options
 vim.opt.encoding = 'utf-8'

@@ -14,7 +14,12 @@ return {
     vim.api.nvim_create_autocmd("FileType", {
       callback = function()
         pcall(vim.treesitter.start) -- no-ops safely if no parser for this filetype
-        vim.bo.indentexpr = "v:lua.vim.treesitter.indentexpr()"
+        -- nvim-treesitter's `main` branch ships its own indentexpr, distinct
+        -- from (and more complete than) Neovim core's generic
+        -- vim.treesitter.indentexpr(). Using core's version here silently
+        -- flattened indentation to column 0 for every nested line in
+        -- multi-line brackets/blocks — this is the one the README calls for.
+        vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
       end,
     })
   end,
